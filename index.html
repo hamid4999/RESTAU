@@ -1,0 +1,1547 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application de Commande Restaurant</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        /* Hide scrollbars for smooth touch experience */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-100 h-full flex flex-col overflow-hidden select-none">
+
+    <!-- ==================== INITIAL SERVER LOGIN MODAL ==================== -->
+    <div id="initial-login-screen" class="fixed inset-0 bg-slate-900 z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-md flex flex-col overflow-hidden animate-in fade-in zoom-in duration-300 p-8 space-y-6">
+            <div class="text-center">
+                <div class="w-16 h-16 bg-amber-500 text-slate-900 rounded-3xl flex items-center justify-center mx-auto mb-4 text-2xl shadow-lg">
+                    <i class="fa-solid fa-utensils"></i>
+                </div>
+                <h1 class="font-bold text-slate-900 text-2xl">RestoCommand Pro</h1>
+                <p class="text-xs text-slate-500 mt-1">Sunny Beach Resort · Anza · Agadir</p>
+            </div>
+
+            <form onsubmit="handleInitialLogin(event)" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5"><i class="fa-solid fa-user-tie text-amber-500 mr-1"></i> Sélectionnez votre profil :</label>
+                    <select id="initial-server-select" class="w-full bg-slate-100 border border-slate-300 text-slate-800 font-medium rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500">
+                        <!-- Populated dynamically -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold uppercase tracking-wider text-slate-600 mb-1.5"><i class="fa-solid fa-key text-amber-500 mr-1"></i> Code PIN personnel :</label>
+                    <input type="password" id="initial-server-pin" required placeholder="Entrez votre code secret" class="w-full bg-slate-100 border border-slate-300 rounded-2xl px-4 py-3 text-sm text-center font-semibold tracking-widest focus:outline-none focus:ring-2 focus:ring-amber-500">
+                </div>
+
+                <button type="submit" class="w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3.5 rounded-2xl text-sm transition shadow-md active:scale-95 cursor-pointer flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-right-to-bracket"></i>
+                    <span>Ouvrir ma Session</span>
+                </button>
+            </form>
+
+            <div class="pt-2 border-t border-slate-100 text-center">
+                <button onclick="openInitialAdminLogin()" class="text-xs font-semibold text-slate-400 hover:text-indigo-600 transition">
+                    <i class="fa-solid fa-shield-halved mr-1"></i> Accès Administrateur / Caisse
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Navigation / Mode Switcher Header -->
+    <header class="bg-slate-900 text-white shadow-md px-4 py-3 flex justify-between items-center z-20 shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-amber-500 text-slate-900 p-2 rounded-xl font-bold flex items-center justify-center shadow">
+                <i class="fa-solid fa-utensils text-lg"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight">RestoCommand Pro</h1>
+                <p class="text-xs text-slate-400">Système Interactif Serveur & Caisse</p>
+            </div>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="flex bg-slate-800 p-1 rounded-xl border border-slate-700">
+            <button onclick="switchMode('server')" id="btn-mode-server" class="px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 bg-amber-500 text-slate-900 shadow">
+                <i class="fa-solid fa-tablet-screen-button"></i>
+                <span class="hidden sm:inline">Serveur</span>
+            </button>
+            <button onclick="switchMode('cashier')" id="btn-mode-cashier" class="px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-slate-300 hover:text-white relative">
+                <i class="fa-solid fa-cash-register"></i>
+                <span class="hidden sm:inline">Caissier</span>
+                <span id="cashier-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold hidden shadow-lg animate-pulse">0</span>
+            </button>
+            <button onclick="requestAdminAccess()" id="btn-mode-admin" class="px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-slate-300 hover:text-white">
+                <i class="fa-solid fa-lock text-xs"></i>
+                <span class="hidden sm:inline">Admin</span>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="flex-1 overflow-hidden relative flex">
+
+        <!-- ==================== SERVER INTERFACE ==================== -->
+        <section id="view-server" class="absolute inset-0 flex flex-col lg:flex-row bg-slate-100 overflow-hidden">
+            
+            <!-- Left Side: Catalog & Categories -->
+            <div class="flex-1 flex flex-col h-full overflow-hidden p-4 lg:p-6">
+                
+                <!-- Server & Table Bar -->
+                <div class="bg-white p-3 rounded-2xl shadow-sm border border-slate-200 mb-4 flex flex-wrap items-center justify-between gap-3 shrink-0">
+                    <div class="flex items-center space-x-3">
+                        <div class="bg-amber-100 text-amber-900 px-3.5 py-2 rounded-xl text-sm font-bold flex items-center space-x-2 shadow-sm">
+                            <i class="fa-solid fa-user-tie text-amber-600"></i>
+                            <span>Serveur : <strong id="current-server-display" class="text-slate-900">-</strong></span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <label for="table-input" class="text-xs font-semibold uppercase tracking-wider text-slate-500"><i class="fa-solid fa-chair text-amber-500 mr-1"></i> Table :</label>
+                        <input type="text" id="table-input" value="Table 4" class="w-24 bg-slate-100 border border-slate-300 text-slate-800 font-semibold rounded-xl px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500">
+                    </div>
+
+                    <div class="flex items-center space-x-2">
+                        <button onclick="openServerHistoryModal()" class="bg-amber-100 hover:bg-amber-200 text-amber-800 px-3.5 py-2 rounded-xl text-xs font-bold transition flex items-center space-x-1.5 shadow-sm">
+                            <i class="fa-solid fa-clock-rotate-left"></i>
+                            <span>Mes Commandes</span>
+                            <span id="server-orders-count-badge" class="bg-amber-600 text-white text-[10px] px-1.5 py-0.5 rounded-full ml-1">0</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Categories Horizontal Scroll -->
+                <div id="category-tabs" class="flex space-x-2 overflow-x-auto no-scrollbar pb-2 mb-4 shrink-0">
+                    <!-- Dynamically populated categories -->
+                </div>
+
+                <!-- Products Grid -->
+                <div class="flex-1 overflow-y-auto pr-1">
+                    <div id="products-grid" class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4 pb-20 lg:pb-4">
+                        <!-- Dynamically populated products -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Current Cart / Order Summary -->
+            <div class="w-full lg:w-96 bg-white border-t lg:border-t-0 lg:border-l border-slate-200 flex flex-col h-full shadow-lg z-10 shrink-0">
+                <div class="p-4 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                    <h2 class="font-bold text-slate-800 flex items-center space-x-2">
+                        <i class="fa-solid fa-receipt text-amber-500"></i>
+                        <span>Commande en cours</span>
+                    </h2>
+                    <span id="cart-count-badge" class="bg-amber-100 text-amber-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">0 articles</span>
+                </div>
+
+                <!-- Cart Items List -->
+                <div id="cart-items-container" class="flex-1 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
+                    <!-- Empty State -->
+                    <div id="cart-empty-state" class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                        <i class="fa-solid fa-basket-shopping text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Aucun article sélectionné</p>
+                        <p class="text-xs text-slate-400 mt-1">Touchez un plat pour l'ajouter</p>
+                    </div>
+                </div>
+
+                <!-- Cart Footer & Send Button -->
+                <div class="p-4 border-t border-slate-200 bg-slate-50 space-y-3">
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-sm text-slate-500">
+                            <span>Sous-total</span>
+                            <span id="cart-subtotal">0.00 DH</span>
+                        </div>
+                        <div class="flex justify-between text-lg font-bold text-slate-900">
+                            <span>Total</span>
+                            <span id="cart-total" class="text-amber-600">0.00 DH</span>
+                        </div>
+                    </div>
+
+                    <button onclick="sendOrder()" id="send-order-btn" disabled class="w-full bg-slate-300 text-slate-500 font-bold py-3.5 px-4 rounded-2xl transition shadow-sm flex items-center justify-center space-x-2 cursor-not-allowed">
+                        <i class="fa-solid fa-paper-plane"></i>
+                        <span>Envoyer au Caissier</span>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== CASHIER INTERFACE ==================== -->
+        <section id="view-cashier" class="absolute inset-0 hidden flex flex-col bg-slate-100 overflow-hidden">
+            <!-- Cashier Header Subbar -->
+            <div class="bg-white p-4 border-b border-slate-200 flex flex-wrap justify-between items-center gap-4 shadow-sm shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-emerald-100 text-emerald-800 p-2.5 rounded-xl font-bold">
+                        <i class="fa-solid fa-cash-register text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Caisse Centrale & Suivi des Commandes</h2>
+                        <p class="text-xs text-slate-500">Mise à jour en temps réel des commandes envoyées par les serveurs</p>
+                    </div>
+                </div>
+
+                <div class="flex items-center space-x-3">
+                    <div class="bg-emerald-50 text-emerald-700 border border-emerald-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center space-x-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping"></span>
+                        <span>Connexion active</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Orders Grid Area -->
+            <div class="flex-1 overflow-y-auto p-4 lg:p-6">
+                <div id="cashier-orders-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+                    <!-- Orders will load here dynamically -->
+                </div>
+
+                <!-- Empty Orders State -->
+                <div id="cashier-empty-state" class="h-64 flex flex-col items-center justify-center text-slate-400">
+                    <i class="fa-solid fa-bell-slash text-5xl mb-3 text-slate-300"></i>
+                    <p class="text-base font-semibold text-slate-600">Aucune commande en attente</p>
+                    <p class="text-xs text-slate-400 mt-1">Les commandes des serveurs apparaîtront ici instantanément.</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ==================== ADMIN INTERFACE ==================== -->
+        <section id="view-admin" class="absolute inset-0 hidden flex flex-col bg-slate-100 overflow-hidden">
+            <div class="bg-white p-4 border-b border-slate-200 flex justify-between items-center shadow-sm shrink-0">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-indigo-100 text-indigo-800 p-2.5 rounded-xl font-bold">
+                        <i class="fa-solid fa-shield-halved text-xl"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-slate-800">Administration & Gestion du Restaurant</h2>
+                        <p class="text-xs text-slate-500">Gestion des serveurs, mots de passe et du catalogue des plats</p>
+                    </div>
+                </div>
+                <button onclick="lockAdminSession()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 px-3.5 py-2 rounded-xl text-xs font-semibold transition flex items-center space-x-1.5">
+                    <i class="fa-solid fa-lock"></i>
+                    <span>Verrouiller l'Admin</span>
+                </button>
+            </div>
+
+            <div class="flex-1 overflow-y-auto p-4 lg:p-6">
+                <div class="max-w-3xl mx-auto space-y-6">
+                    <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 p-4 rounded-2xl text-xs leading-relaxed flex items-start space-x-3">
+                        <i class="fa-solid fa-circle-info text-indigo-600 text-base mt-0.5"></i>
+                        <div>
+                            <span class="font-bold block mb-1">Espace réservé à la gérance</span>
+                            Configurez ici les serveurs, leurs mots de passe d'accès et modifiez le menu en temps réel.
+                        </div>
+                    </div>
+
+                    <!-- Guide Partage Multi-Appareils (Cloud & Réseau Local) -->
+                    <div class="bg-white p-5 rounded-3xl border border-indigo-100 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-share-nodes text-indigo-600"></i>
+                            <span>Comment partager l'application sur une autre plateforme (Sans Firebase)</span>
+                        </h4>
+                        <div class="text-xs text-slate-600 space-y-3 leading-relaxed">
+                            <p>Pour partager cette application sur plusieurs tablettes et ordinateurs via Internet ou un réseau local sans utiliser Firebase, voici les meilleures solutions gratuites et instantanées :</p>
+                            
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+                                <!-- Option 1: Netlify Drop -->
+                                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                                    <span class="font-bold text-slate-900 flex items-center space-x-1.5 text-xs">
+                                        <i class="fa-solid fa-globe text-indigo-600"></i>
+                                        <span>1. Netlify Drop (Le plus simple)</span>
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">Glissez-déposez simplement votre fichier HTML sur <a href="https://drop.netlify.com" target="_blank" class="text-indigo-600 underline font-semibold">Netlify Drop</a>. Vous obtiendrez instantanément un lien web unique à ouvrir sur toutes vos tablettes !</p>
+                                </div>
+
+                                <!-- Option 2: GitHub Pages -->
+                                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                                    <span class="font-bold text-slate-900 flex items-center space-x-1.5 text-xs">
+                                        <i class="fa-brands fa-github text-slate-800"></i>
+                                        <span>2. GitHub Pages</span>
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">Créez un dépôt GitHub public, renommez votre fichier en <code class="bg-white px-1 rounded border">index.html</code> et activez GitHub Pages dans les paramètres pour un hébergement gratuit et permanent.</p>
+                                </div>
+
+                                <!-- Option 3: Vercel -->
+                                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 space-y-2">
+                                    <span class="font-bold text-slate-900 flex items-center space-x-1.5 text-xs">
+                                        <i class="fa-solid fa-bolt text-amber-600"></i>
+                                        <span>3. Vercel / Surge.sh</span>
+                                    </span>
+                                    <p class="text-[11px] text-slate-500">Importez le fichier sur <a href="https://vercel.com" target="_blank" class="text-indigo-600 underline font-semibold">Vercel</a> en un clic pour générer une adresse web sécurisée (HTTPS) accessible sur Android et PC.</p>
+                                </div>
+                            </div>
+
+                            <div class="bg-amber-50 p-3.5 rounded-2xl border border-amber-200 text-amber-900 text-[11px]">
+                                <i class="fa-solid fa-triangle-exclamation mr-1 text-amber-600"></i>
+                                <strong>Note importante :</strong> Si vous hébergez l'application sur un hébergement statique classique (Netlify, Vercel, GitHub Pages), les données s'enregistrent localement sur chaque appareil. Pour que <strong>tous</strong> les appareils se mettent à jour en direct sur une seule base commune sans Firebase, vous pouvez connecter un backend léger (comme Supabase ou PocketBase) ou utiliser le réseau Wi-Fi local avec un petit serveur Node.js.
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Servers Management Section -->
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-users text-indigo-600"></i>
+                            <span>Gestion des Serveurs & Mots de passe</span>
+                        </h4>
+                        <form onsubmit="addNewServer(event)" class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Nom du serveur</label>
+                                <input type="text" id="new-server-name" required placeholder="Ex: Mehdi" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Mot de passe personnel</label>
+                                <input type="password" id="new-server-pass" required placeholder="Ex: 1234" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow">
+                                    Ajouter un serveur
+                                </button>
+                            </div>
+                        </form>
+                        <div id="admin-servers-list" class="space-y-2 pt-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Add item form -->
+                    <form id="add-product-form" onsubmit="addNewProduct(event)" class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-plus text-indigo-600"></i>
+                            <span>Ajouter un nouvel article au menu</span>
+                        </h4>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Nom du plat</label>
+                                <input type="text" id="new-item-name" required placeholder="Ex: Tacos XL Poulet" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Catégorie</label>
+                                <select id="new-item-category" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    <option value="Goûters Signature">Goûters Signature</option>
+                                    <option value="Crêpes">Crêpes</option>
+                                    <option value="Pancakes">Pancakes</option>
+                                    <option value="Gaufres">Gaufres</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Prix (MAD)</label>
+                                <input type="number" step="0.5" id="new-item-price" required placeholder="45.00" class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Emoji / Icône</label>
+                                <input type="text" id="new-item-icon" value="🥞" required class="w-full bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            </div>
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 rounded-xl text-sm transition shadow">
+                            Ajouter au catalogue général
+                        </button>
+                    </form>
+
+                    <!-- Existing menu list summary & editing -->
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-3">
+                        <h4 class="font-bold text-slate-800 text-sm">Gestion & Modification des articles actifs</h4>
+                        <div id="admin-menu-list" class="space-y-3 max-h-96 overflow-y-auto pr-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Servers Performance & Financial Dashboard (New) -->
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <div class="flex flex-wrap justify-between items-center gap-2 border-b border-slate-100 pb-3">
+                            <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                                <i class="fa-solid fa-chart-line text-indigo-600"></i>
+                                <span>Chiffre d'Affaires & Historique par Serveur</span>
+                            </h4>
+                            <div class="bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-xl text-xs font-bold border border-emerald-200 shadow-sm">
+                                CA Total Restaurant : <span id="admin-total-revenue" class="text-emerald-700 text-sm font-black">0.00 MAD</span>
+                            </div>
+                        </div>
+
+                        <!-- Servers Stats Cards Grid -->
+                        <div id="admin-servers-stats-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+
+                    <!-- Cancellation Reasons Management Section -->
+                    <div class="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm space-y-4">
+                        <h4 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                            <i class="fa-solid fa-ban text-indigo-600"></i>
+                            <span>Motifs d'Annulation (Traçabilité)</span>
+                        </h4>
+                        <form onsubmit="addCancelReason(event)" class="flex gap-2">
+                            <input type="text" id="new-cancel-reason" required placeholder="Ex: Erreur de saisie client, Changement d'avis..." class="flex-1 bg-slate-50 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <button type="submit" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold px-4 py-2 rounded-xl text-sm transition shadow">
+                                Ajouter un motif
+                            </button>
+                        </form>
+                        <div id="admin-cancel-reasons-list" class="space-y-2 pt-2">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ==================== ADMIN PASSWORD MODAL ==================== -->
+    <div id="admin-auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 p-6 space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-indigo-100 text-indigo-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl shadow-inner">
+                    <i class="fa-solid fa-lock"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">Accès Administrateur</h3>
+                <p class="text-xs text-slate-500 mt-1">Entrez le mot de passe gérant pour accéder à la configuration du menu.</p>
+            </div>
+
+            <form onsubmit="verifyAdminPassword(event)" class="space-y-3">
+                <input type="password" id="admin-password-input" required placeholder="Mot de passe (ex: admin123)" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-indigo-500 font-semibold tracking-widest">
+                <div class="flex space-x-2 pt-1">
+                    <button type="button" onclick="closeAdminAuthModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-xl text-sm transition">
+                        Annuler
+                    </button>
+                    <button type="submit" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow">
+                        Valider
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== SERVER HISTORIQUE / MES COMMANDES MODAL ==================== -->
+    <div id="server-history-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+            <div class="p-5 border-b border-slate-200 flex justify-between items-center bg-slate-50">
+                <div class="flex items-center space-x-2">
+                    <div class="bg-amber-100 text-amber-800 p-2 rounded-xl">
+                        <i class="fa-solid fa-clock-rotate-left"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-bold text-slate-800 text-base" id="server-modal-title">Mes Commandes</h3>
+                        <p class="text-xs text-slate-500">Suivi des envois pour le serveur actuel</p>
+                    </div>
+                </div>
+                <!-- Serveur CA summary badge -->
+                <div id="server-modal-revenue-badge" class="bg-emerald-50 text-emerald-800 border border-emerald-200 px-3 py-1.5 rounded-xl text-xs font-bold shadow-sm">
+                    CA Encaissé : <span id="server-modal-revenue" class="text-emerald-700 font-black">0.00 MAD</span>
+                </div>
+                <button onclick="closeServerHistoryModal()" class="text-slate-400 hover:text-slate-700 text-lg p-2">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto space-y-4 flex-1 bg-slate-50" id="server-history-list">
+                <!-- Dynamically populated server orders -->
+            </div>
+            
+            <div class="p-4 border-t border-slate-200 bg-white flex justify-end">
+                <button onclick="closeServerHistoryModal()" class="bg-slate-900 text-white px-5 py-2.5 rounded-xl text-sm font-semibold hover:bg-slate-800 transition">
+                    Fermer
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== CANCELLATION REASON MODAL ==================== -->
+    <div id="cancel-order-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 p-6 space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-red-100 text-red-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl shadow-inner">
+                    <i class="fa-solid fa-ban"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base">Annuler la commande</h3>
+                <p class="text-xs text-slate-500 mt-1">Veuillez sélectionner le motif de l'annulation pour la traçabilité.</p>
+            </div>
+
+            <input type="hidden" id="cancel-target-id">
+            <div class="space-y-2">
+                <label class="block text-xs font-semibold text-slate-600">Motif d'annulation :</label>
+                <select id="cancel-reason-select" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    <!-- Populated dynamically -->
+                </select>
+            </div>
+
+            <div class="flex space-x-2 pt-2">
+                <button type="button" onclick="closeCancelModal()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-xl text-sm transition">
+                    Retour
+                </button>
+                <button type="button" onclick="confirmCancelOrder()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-2.5 rounded-xl text-sm transition shadow">
+                    Confirmer l'annulation
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== SERVER PASSWORD AUTH MODAL ==================== -->
+    <div id="server-auth-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-sm flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200 p-6 space-y-4">
+            <div class="text-center">
+                <div class="w-12 h-12 bg-amber-100 text-amber-700 rounded-2xl flex items-center justify-center mx-auto mb-3 text-xl shadow-inner">
+                    <i class="fa-solid fa-user-shield"></i>
+                </div>
+                <h3 class="font-bold text-slate-900 text-base" id="server-auth-modal-title">Authentification Serveur</h3>
+                <p class="text-xs text-slate-500 mt-1">Entrez votre code secret pour ouvrir votre session de service.</p>
+            </div>
+
+            <form onsubmit="verifyServerPassword(event)" class="space-y-3">
+                <input type="password" id="server-password-input" required placeholder="Code secret (ex: 1234)" class="w-full bg-slate-100 border border-slate-300 rounded-xl px-4 py-3 text-sm text-center focus:outline-none focus:ring-2 focus:ring-amber-500 font-semibold tracking-widest">
+                <div class="flex space-x-2 pt-1">
+                    <button type="button" onclick="cancelServerSwitch()" class="flex-1 bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 rounded-xl text-sm transition">
+                        Annuler
+                    </button>
+                    <button type="submit" class="flex-1 bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-2.5 rounded-xl text-sm transition shadow">
+                        Ouvrir Session
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast / Custom Alert box -->
+    <div id="toast-container" class="fixed bottom-6 right-6 z-50 flex flex-col space-y-2 pointer-events-none"></div>
+
+    <!-- Audio notification synthesizer (Beep) using Web Audio API -->
+    <script>
+        function playBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sine';
+                oscillator.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5 note
+                oscillator.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.15);
+                
+                gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.5);
+            } catch (e) {
+                console.log("Audio context prevented or not supported", e);
+            }
+        }
+
+        // Son plus grave pour notifier le cuisinier d'une annulation
+        function playCancelBeep() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const oscillator = audioCtx.createOscillator();
+                const gainNode = audioCtx.createGain();
+                
+                oscillator.type = 'sawtooth';
+                oscillator.frequency.setValueAtTime(220, audioCtx.currentTime); // A3 note (plus grave)
+                oscillator.frequency.exponentialRampToValueAtTime(110, audioCtx.currentTime + 0.3);
+                
+                gainNode.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.6);
+                
+                oscillator.connect(gainNode);
+                gainNode.connect(audioCtx.destination);
+                
+                oscillator.start();
+                oscillator.stop(audioCtx.currentTime + 0.6);
+            } catch (e) {
+                console.log("Audio context prevented or not supported", e);
+            }
+        }
+    </script>
+
+    <!-- Main Application Logic Script -->
+    <script>
+        // Default Rich Menu Data - Sunny Beach Resort (Anza, Agadir)
+        const defaultMenu = [
+            // Goûters Signature
+            { id: 1, name: "Goûter Marocain ★", category: "Goûters Signature", price: 90, icon: "🫓", desc: "Grande table : harira, msemen, hercha, beghrir, chebakia, jben, dattes, miel/beurre, œufs durs." },
+            { id: 2, name: "Plateau Marrakech ★", category: "Goûters Signature", price: 85, icon: "🥮", desc: "Salé-sucré : harira, briwattes assortis, batbout farci, chebakia et dattes." },
+            { id: 3, name: "Goûter du Souss ★", category: "Goûters Signature", price: 95, icon: "🍯", desc: "Terroir avec amlou : harira, pâtisseries, batbout, amlou, miel et beurre." },
+            { id: 4, name: "Goûter Gourmand", category: "Goûters Signature", price: 90, icon: "🥐", desc: "Continental sucré : porridge au miel/amandes, cake et viennoiseries." },
+            { id: 5, name: "Goûter Marin", category: "Goûters Signature", price: 110, icon: "🐟", desc: "Salé bord de mer : soupe de poisson, bruschetta au saumon, croissant jambon-fromage." },
+            { id: 6, name: "Pause Fraîcheur", category: "Goûters Signature", price: 90, icon: "🥑", desc: "Léger/sain : pain grillé au brie, noix, miel, salade, jus pressé vert." },
+            { id: 7, name: "Goûter Plaisir", category: "Goûters Signature", price: 60, icon: "🥞", desc: "Simple : une crêpe, gaufre ou pancake au choix avec garniture." },
+
+            // Crêpes
+            { id: 8, name: "Crêpe Classique", category: "Crêpes", price: 30, icon: "🥞", desc: "Crêpe fine au sucre, citron en option." },
+            { id: 9, name: "Crêpe Chocolat Noisette", category: "Crêpes", price: 35, icon: "🍫", desc: "Garnie de pâte chocolat et noisette." },
+            { id: 10, name: "Crêpe Banane Chocolat", category: "Crêpes", price: 40, icon: "🍌", desc: "Chocolat, noisette et banane fraîche." },
+            { id: 11, name: "Crêpe Maki Sucrée", category: "Crêpes", price: 45, icon: "🍥", desc: "Roulée et tranchée façon maki, chocolat, banane ou fraise." },
+            { id: 12, name: "Trio de Mini Crêpes", category: "Crêpes", price: 45, icon: "🎨", desc: "Trois mini crêpes : chocolat, caramel et crème pistache." },
+            { id: 13, name: "Crêpe Fruits et Chantilly", category: "Crêpes", price: 45, icon: "🍓", desc: "Fruits frais de saison et crème chantilly." },
+            { id: 14, name: "Crêpe Trois Chocolats", category: "Crêpes", price: 50, icon: "🍮", desc: "Trois chocolats, crème cheese et une boule de glace vanille." },
+            { id: 15, name: "Crêpe Brownie Ganache", category: "Crêpes", price: 55, icon: "🥮", desc: "Brownie et ganache noire, chocolat au lait et chocolat blanc." },
+            { id: 16, name: "Crêpe Oreo Banane", category: "Crêpes", price: 55, icon: "🍪", desc: "Oreo, crème cheese et banane, chocolat blanc et chocolat au lait." },
+            { id: 17, name: "Crêpe Croustillante Spéculoos", category: "Crêpes", price: 60, icon: "🌰", desc: "Crème spéculoos, crème cheese, banane et biscuit croquant." },
+            { id: 18, name: "Crêpe Gourmande Maison", category: "Crêpes", price: 70, icon: "🍨", desc: "Glace vanille, brownie, biscuit croquant et trois chocolats." },
+            { id: 19, name: "Crêpe Dubaï Pistache ★", category: "Crêpes", price: 85, icon: "✨", desc: "Konafa croustillante, pistache, crème pistache, chocolat lait/blanc." },
+
+            // Pancakes
+            { id: 20, name: "Pancakes Miel et Noix", category: "Pancakes", price: 40, icon: "🥞", desc: "Moelleux, servis par trois avec miel et noix." },
+            { id: 21, name: "Pancakes Chocolat Noisette", category: "Pancakes", price: 45, icon: "🍫", desc: "Garnis de chocolat noisette." },
+            { id: 22, name: "Pancakes Banane Chocolat", category: "Pancakes", price: 50, icon: "🍌", desc: "Chocolat noisette et banane fraîche." },
+            { id: 23, name: "Pancakes Oreo Vanille", category: "Pancakes", price: 55, icon: "🍪", desc: "Oreo, chocolat au lait et boule de glace vanille." },
+            { id: 24, name: "Pancakes Fruits de Saison", category: "Pancakes", price: 50, icon: "🍑", desc: "Fruits frais de saison, sirop ou miel." },
+            { id: 25, name: "Pancakes Fruits Rouges", category: "Pancakes", price: 60, icon: "🍒", desc: "Fraise, framboise, myrtille et coulis de fruits rouges." },
+            { id: 26, name: "Pancakes Exotiques", category: "Pancakes", price: 65, icon: "🍍", desc: "Mangue, ananas, kiwi, chantilly et miel." },
+            { id: 27, name: "Pancakes Royal Pistache ★", category: "Pancakes", price: 70, icon: "👑", desc: "Pancakes XL, konafa pistache et fondue de chocolat au lait." },
+
+            // Gaufres
+            { id: 28, name: "Gaufre Classique", category: "Gaufres", price: 35, icon: "🧇", desc: "Gaufre croustillante au sucre glace." },
+            { id: 29, name: "Gaufre Chocolat et Noisette", category: "Gaufres", price: 40, icon: "🍫", desc: "Nappage chocolat noisette." },
+            { id: 30, name: "Gaufre Banane Chocolat", category: "Gaufres", price: 45, icon: "🍌", desc: "Chocolat, banane et nappage chocolat." },
+            { id: 31, name: "Gaufre Trois Chocolats", category: "Gaufres", price: 55, icon: "🍩", desc: "Chocolat noir, chocolat au lait et chocolat blanc." },
+            { id: 32, name: "Gaufre Fruits et Chantilly", category: "Gaufres", price: 55, icon: "🍓", desc: "Fruits de saison, chantilly, chocolat blanc et noir." },
+            { id: 33, name: "Gaufre Oreo Vanille", category: "Gaufres", price: 60, icon: "🍪", desc: "Oreo, chocolats et boule de glace vanille." },
+            { id: 34, name: "Gaufre Quatre Saveurs", category: "Gaufres", price: 70, icon: "✨", desc: "Chocolat, caramel, crème pistache et miel fruité." },
+            { id: 35, name: "Gaufre Caramel Beurre Salé", category: "Gaufres", price: 50, icon: "🍯", desc: "Caramel onctueux au beurre salé." }
+        ];
+
+        let menu = JSON.parse(localStorage.getItem('restaurant_menu')) || defaultMenu;
+        let cart = [];
+        let currentCategory = "Goûters Signature";
+        let orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+        let isAdminAuthenticated = false;
+
+        // Default servers list with passwords
+        let servers = JSON.parse(localStorage.getItem('restaurant_servers')) || [
+            { name: "Thomas", pin: "1111" },
+            { name: "Sarah", pin: "2222" },
+            { name: "Karim", pin: "3333" },
+            { name: "Chaimaa", pin: "4444" }
+        ];
+
+        // Default cancellation reasons
+        let cancelReasons = JSON.parse(localStorage.getItem('restaurant_cancel_reasons')) || [
+            "Erreur de saisie dans le menu",
+            "Le client a changé d'avis",
+            "Produit épuisé en cuisine",
+            "Table partie sans commander",
+            "Autre raison"
+        ];
+
+        let pendingServerSelection = null;
+        let authenticatedServer = null;
+
+        // Fonction centralisée de sauvegarde et de synchronisation instantanée globale sur toutes les pages et tablettes
+        function saveAndBroadcastState() {
+            try {
+                localStorage.setItem('restaurant_orders', JSON.stringify(orders));
+                localStorage.setItem('restaurant_menu', JSON.stringify(menu));
+                localStorage.setItem('restaurant_servers', JSON.stringify(servers));
+                localStorage.setItem('restaurant_cancel_reasons', JSON.stringify(cancelReasons));
+                
+                // Déclencher un événement personnalisé de synchro inter-onglets/tablettes immédiat
+                localStorage.setItem('restaurant_sync_timestamp', Date.now().toString());
+
+                // Actualiser l'affichage HTML local de toutes les sections actives
+                refreshAllDisplays();
+            } catch (e) {
+                console.error("Erreur lors de la synchronisation globale", e);
+            }
+        }
+
+        // Fonction pour rafraîchir tous les éléments graphiques et HTML de la page active
+        function refreshAllDisplays() {
+            renderCategories();
+            renderProducts();
+            renderCart();
+            renderCashierOrders();
+            renderServerHistory();
+            updateBadges();
+            if (isAdminAuthenticated) {
+                renderAdminMenuList();
+                renderAdminServersList();
+                renderAdminCancelReasonsList();
+                renderAdminServersStats();
+            }
+        }
+
+        // Initialization
+        window.onload = function() {
+            renderInitialServerSelect();
+            renderServerSelectOptions();
+            refreshAllDisplays();
+
+            // Listen to storage events for cross-tab and cross-device sync
+            window.addEventListener('storage', function(e) {
+                if (e.key === 'restaurant_orders' || e.key === 'restaurant_sync_timestamp' || e.key?.startsWith('server_local_paid_')) {
+                    orders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+                    refreshAllDisplays();
+                }
+                if (e.key === 'restaurant_menu') {
+                    menu = JSON.parse(e.newValue) || defaultMenu;
+                    refreshAllDisplays();
+                }
+                if (e.key === 'restaurant_servers') {
+                    servers = JSON.parse(e.newValue) || [];
+                    renderInitialServerSelect();
+                    renderServerSelectOptions();
+                    if (isAdminAuthenticated) renderAdminServersList();
+                }
+                if (e.key === 'restaurant_cancel_reasons') {
+                    cancelReasons = JSON.parse(e.newValue) || [];
+                    if (isAdminAuthenticated) renderAdminCancelReasonsList();
+                }
+            });
+
+            // Polling de sécurité toutes les secondes pour s'assurer que toutes les tablettes se rafraîchissent en temps réel
+            setInterval(() => {
+                const latestOrders = JSON.parse(localStorage.getItem('restaurant_orders')) || [];
+                if (JSON.stringify(latestOrders) !== JSON.stringify(orders)) {
+                    orders = latestOrders;
+                    refreshAllDisplays();
+                }
+            }, 1000);
+        };
+
+        function renderInitialServerSelect() {
+            const select = document.getElementById('initial-server-select');
+            if (select) {
+                select.innerHTML = servers.map(s => `<option value="${s.name}">${s.name}</option>`).join('');
+            }
+        }
+
+        function handleInitialLogin(e) {
+            e.preventDefault();
+            const serverName = document.getElementById('initial-server-select').value;
+            const pin = document.getElementById('initial-server-pin').value;
+
+            const srv = servers.find(s => s.name === serverName);
+            if (srv && srv.pin === pin) {
+                authenticatedServer = serverName;
+                document.getElementById('initial-login-screen').classList.add('hidden');
+                
+                // Mettre à jour l'affichage fixe du serveur sur l'interface
+                const serverDisplay = document.getElementById('current-server-display');
+                if (serverDisplay) {
+                    serverDisplay.innerText = serverName;
+                }
+
+                renderServerHistory();
+                updateBadges();
+                showToast(`Session ouverte pour ${serverName}`, "success");
+            } else {
+                showToast("Code PIN incorrect pour ce serveur", "warning");
+                document.getElementById('initial-server-pin').value = '';
+            }
+        }
+
+        function openInitialAdminLogin() {
+            document.getElementById('initial-login-screen').classList.add('hidden');
+            requestAdminAccess();
+        }
+
+        function renderServerSelectOptions() {
+            // Plus de select nécessaire sur la page principale serveur, mais gardé pour compatibilité interne si requis
+        }
+
+        function promptServerPassword() {
+            // Désactivé sur la page menu principale
+        }
+
+        function cancelServerSwitch() {
+            document.getElementById('server-auth-modal').classList.add('hidden');
+        }
+
+        function verifyServerPassword(e) {
+            e.preventDefault();
+        }
+
+        function switchMode(mode) {
+            const serverView = document.getElementById('view-server');
+            const cashierView = document.getElementById('view-cashier');
+            const adminView = document.getElementById('view-admin');
+            const btnServer = document.getElementById('btn-mode-server');
+            const btnCashier = document.getElementById('btn-mode-cashier');
+            const btnAdmin = document.getElementById('btn-mode-admin');
+
+            // Reset all active styles
+            btnServer.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-slate-300 hover:text-white";
+            btnCashier.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-slate-300 hover:text-white relative";
+            btnAdmin.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 text-slate-300 hover:text-white";
+
+            serverView.classList.add('hidden');
+            cashierView.classList.add('hidden');
+            adminView.classList.add('hidden');
+
+            if (mode === 'server') {
+                serverView.classList.remove('hidden');
+                btnServer.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 bg-amber-500 text-slate-900 shadow";
+            } else if (mode === 'cashier') {
+                cashierView.classList.remove('hidden');
+                btnCashier.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 bg-emerald-500 text-slate-900 shadow";
+                document.getElementById('cashier-badge').classList.add('hidden');
+            } else if (mode === 'admin') {
+                adminView.classList.remove('hidden');
+                btnAdmin.className = "px-3.5 py-2 rounded-lg font-medium text-sm transition-all duration-200 flex items-center space-x-2 bg-indigo-600 text-white shadow";
+                renderAdminMenuList();
+                renderAdminServersList();
+                renderAdminCancelReasonsList();
+                renderAdminServersStats();
+            }
+        }
+
+        function requestAdminAccess() {
+            if (isAdminAuthenticated) {
+                switchMode('admin');
+            } else {
+                document.getElementById('admin-password-input').value = '';
+                document.getElementById('admin-auth-modal').classList.remove('hidden');
+                setTimeout(() => document.getElementById('admin-password-input').focus(), 100);
+            }
+        }
+
+        function closeAdminAuthModal() {
+            document.getElementById('admin-auth-modal').classList.add('hidden');
+        }
+
+        function verifyAdminPassword(e) {
+            e.preventDefault();
+            const pass = document.getElementById('admin-password-input').value;
+            // Mot de passe administrateur configuré : "Concept@100"
+            if (pass === "Concept@100") {
+                isAdminAuthenticated = true;
+                closeAdminAuthModal();
+                switchMode('admin');
+                showToast("Accès administrateur autorisé", "success");
+            } else {
+                showToast("Mot de passe incorrect", "warning");
+                document.getElementById('admin-password-input').value = '';
+            }
+        }
+
+        function lockAdminSession() {
+            isAdminAuthenticated = false;
+            switchMode('server');
+            showToast("Session administrateur verrouillée", "info");
+        }
+
+        function switchServer() {
+            promptServerPassword();
+        }
+
+        // Render Category Tabs
+        function renderCategories() {
+            const container = document.getElementById('category-tabs');
+            const categories = [...new Set(menu.map(item => item.category))];
+            
+            if (!categories.includes(currentCategory) && categories.length > 0) {
+                currentCategory = categories[0];
+            }
+
+            container.innerHTML = categories.map(cat => `
+                <button onclick="selectCategory('${cat}')" class="px-4 py-2.5 rounded-2xl font-semibold text-sm whitespace-nowrap transition-all shadow-sm ${currentCategory === cat ? 'bg-slate-900 text-white shadow' : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'}">
+                    ${cat}
+                </button>
+            `).join('');
+        }
+
+        function selectCategory(cat) {
+            currentCategory = cat;
+            renderCategories();
+            renderProducts();
+        }
+
+        // Render Products Grid
+        function renderProducts() {
+            const container = document.getElementById('products-grid');
+            const filtered = menu.filter(item => item.category === currentCategory);
+
+            container.innerHTML = filtered.map(item => `
+                <div onclick="addToCart(${item.id})" class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md hover:border-amber-400 cursor-pointer transition flex flex-col justify-between group active:scale-95 duration-150">
+                    <div>
+                        <div class="flex justify-between items-start mb-2">
+                            <span class="text-3xl p-2 bg-slate-50 rounded-xl group-hover:bg-amber-50 transition">${item.icon}</span>
+                            <span class="font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-xl text-sm">${item.price} MAD</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm mb-1 line-clamp-1">${item.name}</h3>
+                        <p class="text-xs text-slate-500 line-clamp-2 leading-relaxed">${item.desc}</p>
+                    </div>
+                    <div class="mt-3 pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400 font-medium">
+                        <span>Ajouter</span>
+                        <i class="fa-solid fa-plus-circle text-amber-500 text-base"></i>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Cart Logic
+        function addToCart(id) {
+            const product = menu.find(i => i.id === id);
+            if (!product) return;
+
+            const existing = cart.find(i => i.id === id);
+            if (existing) {
+                existing.qty++;
+            } else {
+                cart.push({ ...product, qty: 1 });
+            }
+            renderCart();
+        }
+
+        function updateQty(id, delta) {
+            const item = cart.find(i => i.id === id);
+            if (!item) return;
+            item.qty += delta;
+            if (item.qty <= 0) {
+                cart = cart.filter(i => i.id !== id);
+            }
+            renderCart();
+        }
+
+        function renderCart() {
+            const container = document.getElementById('cart-items-container');
+            const subtotalEl = document.getElementById('cart-subtotal');
+            const totalEl = document.getElementById('cart-total');
+            const countBadge = document.getElementById('cart-count-badge');
+            const sendBtn = document.getElementById('send-order-btn');
+
+            let totalQty = cart.reduce((sum, i) => sum + i.qty, 0);
+            let subtotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            countBadge.innerText = `${totalQty} article${totalQty > 1 ? 's' : ''}`;
+            subtotalEl.innerText = `${subtotal.toFixed(2)} MAD`;
+            totalEl.innerText = `${subtotal.toFixed(2)} MAD`;
+
+            if (cart.length === 0) {
+                container.innerHTML = `
+                    <div id="cart-empty-state" class="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                        <i class="fa-solid fa-basket-shopping text-4xl mb-3 text-slate-300"></i>
+                        <p class="text-sm font-medium">Aucun article sélectionné</p>
+                        <p class="text-xs text-slate-400 mt-1">Touchez un plat pour l'ajouter</p>
+                    </div>
+                `;
+                sendBtn.disabled = true;
+                sendBtn.className = "w-full bg-slate-300 text-slate-500 font-bold py-3.5 px-4 rounded-2xl transition shadow-sm flex items-center justify-center space-x-2 cursor-not-allowed";
+                return;
+            }
+
+            sendBtn.disabled = false;
+            sendBtn.className = "w-full bg-amber-500 hover:bg-amber-600 text-slate-900 font-bold py-3.5 px-4 rounded-2xl transition shadow-md hover:shadow-lg flex items-center justify-center space-x-2 cursor-pointer active:scale-95";
+
+            container.innerHTML = cart.map(item => `
+                <div class="py-3 flex items-center justify-between">
+                    <div class="flex-1 pr-2">
+                        <h4 class="font-semibold text-slate-800 text-xs">${item.name}</h4>
+                        <span class="text-xs text-amber-600 font-bold">${(item.price * item.qty).toFixed(2)} MAD</span>
+                    </div>
+                    <div class="flex items-center space-x-2 bg-slate-100 p-1 rounded-xl">
+                        <button onclick="updateQty(${item.id}, -1)" class="w-7 h-7 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-700 font-bold text-xs hover:bg-slate-200">-</button>
+                        <span class="w-6 text-center text-xs font-bold text-slate-800">${item.qty}</span>
+                        <button onclick="updateQty(${item.id}, 1)" class="w-7 h-7 bg-white rounded-lg shadow-sm flex items-center justify-center text-slate-700 font-bold text-xs hover:bg-slate-200">+</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Send Order to Cashier
+        function sendOrder() {
+            if (cart.length === 0) return;
+
+            const serverName = authenticatedServer || (servers[0] ? servers[0].name : 'Thomas');
+            const tableInputEl = document.getElementById('table-input');
+            const tableName = tableInputEl ? tableInputEl.value : "Table 4";
+            const subtotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
+
+            const newOrder = {
+                id: 'CMD-' + Math.floor(1000 + Math.random() * 9000),
+                server: serverName,
+                table: tableName,
+                items: [...cart],
+                total: subtotal,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                status: 'pending' // pending or paid
+            };
+
+            orders.unshift(newOrder);
+            cart = [];
+            
+            // Sauvegarder et propager instantanément à toutes les tablettes / navigateurs
+            saveAndBroadcastState();
+            renderCart();
+
+            showToast(`Commande ${newOrder.id} envoyée avec succès !`, 'success');
+        }
+
+        // Render Cashier Orders
+        function renderCashierOrders() {
+            const container = document.getElementById('cashier-orders-container');
+            const emptyState = document.getElementById('cashier-empty-state');
+
+            if (orders.length === 0) {
+                container.innerHTML = '';
+                emptyState.classList.remove('hidden');
+                return;
+            }
+
+            emptyState.classList.add('hidden');
+
+            container.innerHTML = orders.map(ord => `
+                <div class="bg-white rounded-3xl p-5 border ${ord.status === 'paid' ? 'border-emerald-200 bg-emerald-50/20' : ord.status === 'ready' ? 'border-purple-200 bg-purple-50/20' : ord.status === 'launched' ? 'border-blue-200 bg-blue-50/20' : ord.status === 'cancelled' ? 'border-red-200 bg-red-50/20 opacity-75' : 'border-slate-200 shadow-md'} flex flex-col justify-between transition">
+                    <div>
+                        <div class="flex justify-between items-start mb-3">
+                            <div>
+                                <span class="bg-slate-900 text-white text-xs font-bold px-2.5 py-1 rounded-xl">${ord.id}</span>
+                                <span class="ml-2 bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-xl"><i class="fa-solid fa-chair mr-1"></i>${ord.table}</span>
+                            </div>
+                            <span class="text-xs font-semibold text-slate-400"><i class="fa-regular fa-clock mr-1"></i>${ord.time}</span>
+                        </div>
+
+                        <div class="flex items-center space-x-2 mb-4 text-xs font-medium text-slate-600 bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+                            <i class="fa-solid fa-user-tie text-amber-500 text-sm"></i>
+                            <span>Serveur : <strong class="text-slate-900">${ord.server}</strong></span>
+                        </div>
+
+                        <div class="space-y-2 mb-4 max-h-40 overflow-y-auto pr-1">
+                            ${ord.items.map(i => `
+                                <div class="flex justify-between text-xs text-slate-700">
+                                    <span><strong class="text-slate-900">${i.qty}x</strong> ${i.name}</span>
+                                    <span class="font-semibold">${(i.price * i.qty).toFixed(2)} MAD</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="pt-3 border-t border-slate-100 flex items-center justify-between flex-wrap gap-2">
+                        <div>
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block">Total net</span>
+                            <span class="text-base font-bold text-slate-900">${ord.total.toFixed(2)} MAD</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            ${ord.status === 'paid' ? 
+                                `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-2 rounded-xl flex items-center space-x-1"><i class="fa-solid fa-check-circle"></i><span>Encaissé</span></span>` :
+                              ord.status === 'cancelled' ?
+                                `<span class="bg-red-100 text-red-800 text-xs font-bold px-3 py-2 rounded-xl flex items-center space-x-1"><i class="fa-solid fa-ban"></i><span>Annulée (${ord.cancelReason || 'Non spécifié'})</span></span>` :
+                                `
+                                <div class="flex space-x-1.5 flex-wrap">
+                                    ${ord.status !== 'launched' && ord.status !== 'ready' ? 
+                                        `<button onclick="markAsLaunched('${ord.id}')" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold px-2.5 py-2.5 rounded-xl transition shadow flex items-center space-x-1 cursor-pointer">
+                                            <i class="fa-solid fa-fire-burner"></i>
+                                            <span>Lancer</span>
+                                         </button>` : ''
+                                    }
+                                    ${ord.status !== 'ready' ? 
+                                        `<button onclick="markAsReady('${ord.id}')" class="bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold px-2.5 py-2.5 rounded-xl transition shadow flex items-center space-x-1 cursor-pointer">
+                                            <i class="fa-solid fa-bell-concierge"></i>
+                                            <span>Prête</span>
+                                         </button>` :
+                                        `<span class="bg-purple-100 text-purple-800 text-xs font-bold px-2.5 py-2 rounded-xl flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>Prête à livrer</span></span>`
+                                    }
+                                    <button onclick="markAsPaid('${ord.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-3 py-2.5 rounded-xl transition shadow flex items-center space-x-1.5 cursor-pointer">
+                                        <i class="fa-solid fa-cash-register"></i>
+                                        <span>Encaisser</span>
+                                    </button>
+                                </div>
+                                `
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function markAsLaunched(id) {
+            const ord = orders.find(o => o.id === id);
+            if (ord) {
+                ord.status = 'launched';
+                saveAndBroadcastState();
+                showToast(`Commande ${id} signalée comme lancée en cuisine`, "info");
+            }
+        }
+
+        function markAsReady(id) {
+            const ord = orders.find(o => o.id === id);
+            if (ord) {
+                ord.status = 'ready';
+                saveAndBroadcastState();
+                showToast(`Commande ${id} signalée comme PRÊTE à être livrée !`, "success");
+            }
+        }
+
+        function markAsPaid(id) {
+            const ord = orders.find(o => o.id === id);
+            if (ord) {
+                ord.status = 'paid';
+                saveAndBroadcastState();
+                showToast(`Commande ${id} marquée comme encaissée`, 'success');
+            }
+        }
+
+        function openCancelModal(id) {
+            document.getElementById('cancel-target-id').value = id;
+            const select = document.getElementById('cancel-reason-select');
+            select.innerHTML = cancelReasons.map(r => `<option value="${r}">${r}</option>`).join('');
+            document.getElementById('cancel-order-modal').classList.remove('hidden');
+        }
+
+        function closeCancelModal() {
+            document.getElementById('cancel-order-modal').classList.add('hidden');
+        }
+
+        function confirmCancelOrder() {
+            const id = document.getElementById('cancel-target-id').value;
+            const reason = document.getElementById('cancel-reason-select').value;
+            const ord = orders.find(o => o.id === id);
+
+            if (ord) {
+                ord.status = 'cancelled';
+                ord.cancelReason = reason;
+                saveAndBroadcastState();
+                closeCancelModal();
+                
+                playCancelBeep();
+                showToast(`Commande ${id} annulée (${reason})`, "warning");
+            }
+        }
+
+        function clearCompletedOrders() {
+            orders = orders.filter(o => o.status !== 'paid' && o.status !== 'cancelled');
+            saveAndBroadcastState();
+            showToast("Historique purgé", "info");
+        }
+
+        // Render Server History Modal ("Mes Commandes")
+        function renderServerHistory() {
+            const currentServer = authenticatedServer || (servers[0] ? servers[0].name : 'Serveur');
+            const container = document.getElementById('server-history-list');
+            const title = document.getElementById('server-modal-title');
+            const modalRevenueEl = document.getElementById('server-modal-revenue');
+            
+            title.innerText = `Commandes de ${currentServer}`;
+            let serverOrders = orders.filter(o => o.server === currentServer);
+
+            // Charger aussi les statuts encaissés locaux du serveur s'ils existent
+            const localPaid = JSON.parse(localStorage.getItem(`server_local_paid_${currentServer}`)) || [];
+            serverOrders = serverOrders.map(ord => {
+                if (localPaid.includes(ord.id) && ord.status !== 'cancelled' && ord.status !== 'paid') {
+                    return { ...ord, serverLocalPaid: true };
+                }
+                return ord;
+            });
+
+            // Calcul du CA encaissé pour ce serveur spécifique (incluant les paiements locaux du serveur)
+            const srvPaidOrders = serverOrders.filter(o => o.status === 'paid' || o.serverLocalPaid);
+            const srvTotalRevenue = srvPaidOrders.reduce((sum, o) => sum + o.total, 0);
+            if (modalRevenueEl) {
+                modalRevenueEl.innerText = `${srvTotalRevenue.toFixed(2)} MAD`;
+            }
+
+            if (serverOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="h-48 flex flex-col items-center justify-center text-slate-400">
+                        <i class="fa-solid fa-receipt text-4xl mb-2 text-slate-300"></i>
+                        <p class="text-sm font-medium text-slate-600">Aucune commande enregistrée pour ${currentServer}</p>
+                        <p class="text-xs text-slate-400 mt-1">Vos commandes validées apparaîtront ici.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = serverOrders.map(ord => `
+                <div class="bg-white p-4 rounded-2xl border ${ord.status === 'ready' ? 'border-purple-300 bg-purple-50/40' : ord.serverLocalPaid ? 'border-emerald-300 bg-emerald-50/30' : ord.status === 'cancelled' ? 'border-red-200 bg-red-50/30 opacity-75' : 'border-slate-200'} shadow-sm flex flex-col justify-between space-y-3">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <span class="font-bold text-slate-900 text-sm">${ord.id}</span>
+                            <span class="ml-2 bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-0.5 rounded-lg">${ord.table}</span>
+                        </div>
+                        <span class="text-xs font-semibold text-slate-400">${ord.time}</span>
+                    </div>
+
+                    <div class="space-y-1 bg-slate-50 p-2.5 rounded-xl border border-slate-100">
+                        ${ord.items.map(i => `
+                            <div class="flex justify-between text-xs text-slate-700">
+                                <span><strong>${i.qty}x</strong> ${i.name}</span>
+                                <span class="font-medium">${(i.price * i.qty).toFixed(2)} MAD</span>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="flex justify-between items-center pt-2 border-t border-slate-100">
+                        <span class="text-xs font-bold text-slate-900">Total : ${ord.total.toFixed(2)} MAD</span>
+                        <div class="flex items-center space-x-2">
+                            ${ord.status === 'paid' ? 
+                                `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center space-x-1"><i class="fa-solid fa-check"></i><span>Encaissé (Caisse)</span></span>` : 
+                              ord.serverLocalPaid ?
+                                `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center space-x-1"><i class="fa-solid fa-check-double"></i><span>Encaissé (Serveur)</span></span>` :
+                              ord.status === 'cancelled' ?
+                                `<span class="bg-red-100 text-red-800 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center space-x-1"><i class="fa-solid fa-ban"></i><span>Annulée: ${ord.cancelReason}</span></span>` :
+                              ord.status === 'ready' ?
+                                `<div class="flex items-center space-x-2 flex-wrap gap-1">
+                                    <button onclick="markServerLocalPaid('${ord.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow flex items-center space-x-1">
+                                        <i class="fa-solid fa-cash-register"></i>
+                                        <span>Encaisser (Serveur)</span>
+                                    </button>
+                                    <span class="bg-purple-600 text-white text-xs font-bold px-2.5 py-1 rounded-lg flex items-center space-x-1"><i class="fa-solid fa-bell-concierge"></i><span>PRÊTE</span></span>
+                                    <button onclick="openCancelModal('${ord.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold px-2 py-1.5 rounded-lg transition">Annuler</button>
+                                 </div>` :
+                              ord.status === 'launched' ?
+                                `<div class="flex items-center space-x-2 flex-wrap gap-1">
+                                    <button onclick="markServerLocalPaid('${ord.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow flex items-center space-x-1">
+                                        <i class="fa-solid fa-cash-register"></i>
+                                        <span>Encaisser (Serveur)</span>
+                                    </button>
+                                    <span class="bg-blue-100 text-blue-800 text-xs font-semibold px-2 py-1 rounded-lg flex items-center space-x-1">Lancée</span>
+                                    <button onclick="openCancelModal('${ord.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold px-2 py-1.5 rounded-lg transition">Annuler</button>
+                                 </div>` :
+                                `<div class="flex items-center space-x-2 flex-wrap gap-1">
+                                    <button onclick="markServerLocalPaid('${ord.id}')" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg transition shadow flex items-center space-x-1">
+                                        <i class="fa-solid fa-cash-register"></i>
+                                        <span>Encaisser (Serveur)</span>
+                                    </button>
+                                    <span class="bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded-lg">En attente</span>
+                                    <button onclick="openCancelModal('${ord.id}')" class="bg-red-100 hover:bg-red-200 text-red-700 text-xs font-semibold px-2 py-1.5 rounded-lg transition">Annuler</button>
+                                 </div>`
+                            }
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function markServerLocalPaid(id) {
+            const currentServer = authenticatedServer || (servers[0] ? servers[0].name : 'Serveur');
+            let localPaid = JSON.parse(localStorage.getItem(`server_local_paid_${currentServer}`)) || [];
+            if (!localPaid.includes(id)) {
+                localPaid.push(id);
+                localStorage.setItem(`server_local_paid_${currentServer}`, JSON.stringify(localPaid));
+                localStorage.setItem('restaurant_sync_timestamp', Date.now().toString());
+            }
+            refreshAllDisplays();
+            showToast(`Montant de la commande ${id} enregistré comme encaissé sur votre session`, "success");
+        }
+
+        function openServerHistoryModal() {
+            renderServerHistory();
+            document.getElementById('server-history-modal').classList.remove('hidden');
+        }
+
+        function closeServerHistoryModal() {
+            document.getElementById('server-history-modal').classList.add('hidden');
+        }
+
+        // Badges & Audio notifications
+        function updateBadges() {
+            const currentServer = authenticatedServer || (servers[0] ? servers[0].name : 'Serveur');
+            const serverOrders = orders.filter(o => o.server === currentServer);
+            document.getElementById('server-orders-count-badge').innerText = serverOrders.length;
+
+            const pendingCashier = orders.filter(o => o.status === 'pending');
+            const cashierBadge = document.getElementById('cashier-badge');
+            if (pendingCashier.length > 0) {
+                cashierBadge.innerText = pendingCashier.length;
+                cashierBadge.classList.remove('hidden');
+                
+                // Play notification sound if new order arrived
+                if (window.lastPendingCount !== undefined && pendingCashier.length > window.lastPendingCount) {
+                    playBeep();
+                    showToast("Nouvelle commande reçue en caisse !", "warning");
+                }
+            } else {
+                cashierBadge.classList.add('hidden');
+            }
+            window.lastPendingCount = pendingCashier.length;
+        }
+
+        // Toast Notification Function
+        function showToast(message, type = 'success') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-slate-900 text-white";
+            let icon = "fa-check-circle text-emerald-400";
+            
+            if (type === 'warning') {
+                bgClass = "bg-amber-500 text-slate-900 font-bold";
+                icon = "fa-triangle-exclamation text-slate-900";
+            } else if (type === 'info') {
+                bgClass = "bg-blue-600 text-white";
+                icon = "fa-info-circle text-blue-200";
+            }
+
+            toast.className = `${bgClass} px-4 py-3 rounded-2xl shadow-xl flex items-center space-x-3 text-sm animate-in slide-in-from-bottom-5 duration-200 pointer-events-auto`;
+            toast.innerHTML = `<i class="fa-solid ${icon} text-base"></i><span>${message}</span>`;
+            
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        function addNewProduct(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-item-name').value;
+            const category = document.getElementById('new-item-category').value;
+            const price = parseFloat(document.getElementById('new-item-price').value);
+            const icon = document.getElementById('new-item-icon').value;
+
+            const newItem = {
+                id: Date.now(),
+                name,
+                category,
+                price,
+                icon,
+                desc: "Article personnalisé."
+            };
+
+            menu.push(newItem);
+            saveAndBroadcastState();
+
+            document.getElementById('add-product-form').reset();
+            showToast("Article ajouté au menu avec succès !");
+        }
+
+        function addNewServer(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-server-name').value.trim();
+            const pin = document.getElementById('new-server-pass').value.trim();
+
+            if (servers.some(s => s.name.toLowerCase() === name.toLowerCase())) {
+                showToast("Ce nom de serveur existe déjà", "warning");
+                return;
+            }
+
+            servers.push({ name, pin });
+            saveAndBroadcastState();
+            renderServerSelectOptions();
+            document.getElementById('new-server-name').value = '';
+            document.getElementById('new-server-pass').value = '';
+            showToast(`Serveur ${name} ajouté avec succès !`, "success");
+        }
+
+        function deleteServer(name) {
+            if (servers.length <= 1) {
+                showToast("Il doit rester au moins un serveur", "warning");
+                return;
+            }
+            servers = servers.filter(s => s.name !== name);
+            saveAndBroadcastState();
+            renderServerSelectOptions();
+            showToast("Serveur supprimé", "info");
+        }
+
+        function renderAdminServersList() {
+            const container = document.getElementById('admin-servers-list');
+            container.innerHTML = servers.map(s => `
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold">
+                            <i class="fa-solid fa-user-tie"></i>
+                        </div>
+                        <div>
+                            <span class="font-bold text-slate-800">${s.name}</span>
+                            <span class="text-slate-400 ml-2">Code: <code class="bg-white px-2 py-0.5 rounded border border-slate-200 font-mono text-indigo-600">${s.pin}</code></span>
+                        </div>
+                    </div>
+                    <button onclick="deleteServer('${s.name}')" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition" title="Supprimer">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function addCancelReason(e) {
+            e.preventDefault();
+            const reasonInput = document.getElementById('new-cancel-reason');
+            const reason = reasonInput.value.trim();
+            if (reason && !cancelReasons.includes(reason)) {
+                cancelReasons.push(reason);
+                saveAndBroadcastState();
+                reasonInput.value = '';
+                showToast("Motif d'annulation ajouté", "success");
+            }
+        }
+
+        function deleteCancelReason(reason) {
+            if (cancelReasons.length <= 1) {
+                showToast("Il doit rester au moins un motif", "warning");
+                return;
+            }
+            cancelReasons = cancelReasons.filter(r => r !== reason);
+            saveAndBroadcastState();
+            showToast("Motif supprimé", "info");
+        }
+
+        function renderAdminCancelReasonsList() {
+            const container = document.getElementById('admin-cancel-reasons-list');
+            container.innerHTML = cancelReasons.map(r => `
+                <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200 flex items-center justify-between text-xs">
+                    <span class="font-medium text-slate-800"><i class="fa-solid fa-circle-dot text-indigo-500 mr-2 text-[10px]"></i>${r}</span>
+                    <button onclick="deleteCancelReason('${r}')" class="text-red-500 hover:text-red-700 p-1.5 rounded-lg hover:bg-red-50 transition">
+                        <i class="fa-solid fa-trash-can"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+
+        function deleteMenuItem(id) {
+            menu = menu.filter(i => i.id !== id);
+            saveAndBroadcastState();
+            showToast("Article supprimé du menu", "info");
+        }
+
+        function updateMenuItem(id) {
+            const nameInput = document.getElementById(`edit-name-${id}`);
+            const priceInput = document.getElementById(`edit-price-${id}`);
+            const catSelect = document.getElementById(`edit-cat-${id}`);
+
+            const item = menu.find(i => i.id === id);
+            if (!item) return;
+
+            item.name = nameInput.value.trim() || item.name;
+            item.price = parseFloat(priceInput.value) || item.price;
+            item.category = catSelect.value;
+
+            saveAndBroadcastState();
+            showToast(`Article "${item.name}" mis à jour avec succès !`, "success");
+        }
+
+        function renderAdminMenuList() {
+            const container = document.getElementById('admin-menu-list');
+            const categories = ["Goûters Signature", "Crêpes", "Pancakes", "Gaufres"];
+
+            container.innerHTML = menu.map(item => `
+                <div class="bg-slate-50 p-3.5 rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
+                    <div class="flex items-center space-x-3 w-full sm:w-auto">
+                        <span class="text-2xl">${item.icon}</span>
+                        <div class="flex-1 space-y-1">
+                            <input type="text" id="edit-name-${item.id}" value="${item.name}" class="w-full bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-slate-800 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <div class="flex space-x-2">
+                                <select id="edit-cat-${item.id}" class="bg-white border border-slate-300 rounded-lg px-2 py-1 text-[11px] text-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                                    ${categories.map(cat => `<option value="${cat}" ${item.category === cat ? 'selected' : ''}>${cat}</option>`).join('')}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-between w-full sm:w-auto space-x-3 pt-2 sm:pt-0 border-t sm:border-0 border-slate-200">
+                        <div class="flex items-center space-x-1">
+                            <input type="number" step="0.5" id="edit-price-${item.id}" value="${item.price}" class="w-20 bg-white border border-slate-300 rounded-lg px-2.5 py-1.5 font-bold text-indigo-600 text-xs text-center focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <span class="text-slate-500 font-semibold">MAD</span>
+                        </div>
+                        <div class="flex items-center space-x-1">
+                            <button onclick="updateMenuItem(${item.id})" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-lg font-semibold transition shadow-sm flex items-center space-x-1">
+                                <i class="fa-solid fa-floppy-disk"></i>
+                                <span>Enregistrer</span>
+                            </button>
+                            <button onclick="deleteMenuItem(${item.id})" class="text-red-500 hover:text-red-700 p-2 rounded-lg hover:bg-red-50 transition" title="Supprimer">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Render Servers Performance & Revenue Stats in Admin Section
+        function renderAdminServersStats() {
+            const container = document.getElementById('admin-servers-stats-grid');
+            const totalRevenueEl = document.getElementById('admin-total-revenue');
+
+            let totalGlobalRevenue = 0;
+
+            container.innerHTML = servers.map(srv => {
+                const srvOrders = orders.filter(o => o.server === srv.name);
+                
+                // Vérifier si encaissé caissier ou encaissé serveur
+                const localPaidIds = JSON.parse(localStorage.getItem(`server_local_paid_${srv.name}`)) || [];
+                
+                const paidOrders = srvOrders.filter(o => o.status === 'paid' || localPaidIds.includes(o.id));
+                const cancelledOrders = srvOrders.filter(o => o.status === 'cancelled');
+                const srvRevenue = paidOrders.reduce((sum, o) => sum + o.total, 0);
+
+                totalGlobalRevenue += srvRevenue;
+
+                return `
+                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col justify-between space-y-3">
+                        <div class="flex justify-between items-center border-b border-slate-200 pb-2.5">
+                            <div class="flex items-center space-x-2">
+                                <div class="w-8 h-8 bg-indigo-100 text-indigo-700 rounded-xl flex items-center justify-center font-bold text-sm shadow-inner">
+                                    <i class="fa-solid fa-user-tie"></i>
+                                </div>
+                                <div>
+                                    <h5 class="font-bold text-slate-900 text-sm">${srv.name}</h5>
+                                    <span class="text-[10px] text-slate-400">Total commandes : ${srvOrders.length}</span>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-[10px] font-bold text-slate-400 block uppercase">Chiffre d'affaires</span>
+                                <span class="text-sm font-black text-emerald-600">${srvRevenue.toFixed(2)} MAD</span>
+                            </div>
+                        </div>
+
+                        <!-- Metrics tags -->
+                        <div class="flex items-center justify-between text-xs font-semibold text-slate-600 px-1">
+                            <span class="bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-xl"><i class="fa-solid fa-check mr-1"></i>Encaissées : ${paidOrders.length}</span>
+                            <span class="bg-red-100 text-red-800 px-2.5 py-1 rounded-xl"><i class="fa-solid fa-ban mr-1"></i>Annulées : ${cancelledOrders.length}</span>
+                        </div>
+
+                        <!-- Detailed server orders history dropdown / list -->
+                        <div class="space-y-1.5 pt-1 max-h-40 overflow-y-auto pr-1">
+                            <span class="text-[10px] uppercase font-bold text-slate-400 block tracking-wider">Détail des opérations :</span>
+                            ${srvOrders.length === 0 ? `<p class="text-[11px] text-slate-400 italic">Aucune commande enregistrée pour ce serveur.</p>` :
+                                srvOrders.map(ord => {
+                                    const isServerPaid = localPaidIds.includes(ord.id);
+                                    const isCashierPaid = ord.status === 'paid';
+                                    const isCancelled = ord.status === 'cancelled';
+
+                                    let badgeHtml = '';
+                                    if (isCancelled) {
+                                        badgeHtml = `<span class="block text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-red-100 text-red-800">Annulée</span>`;
+                                    } else if (isCashierPaid) {
+                                        badgeHtml = `<span class="block text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800">Encaissé Caissier</span>`;
+                                    } else if (isServerPaid) {
+                                        badgeHtml = `<span class="block text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-blue-100 text-blue-800">Encaissé Serveur</span>`;
+                                    } else {
+                                        badgeHtml = `<span class="block text-[9px] uppercase font-bold px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">${ord.status}</span>`;
+                                    }
+
+                                    return `
+                                        <div class="bg-white p-2.5 rounded-xl border border-slate-200 text-xs flex justify-between items-center">
+                                            <div>
+                                                <span class="font-bold text-slate-800">${ord.id}</span>
+                                                <span class="text-[11px] text-slate-500 ml-1">(${ord.table} - ${ord.time})</span>
+                                                ${isCancelled ? `<span class="block text-[10px] text-red-600 font-semibold">Motif: ${ord.cancelReason}</span>` : ''}
+                                            </div>
+                                            <div class="text-right">
+                                                <span class="font-bold ${isCashierPaid || isServerPaid ? 'text-emerald-600' : isCancelled ? 'text-red-500 line-through' : 'text-slate-700'}">${ord.total.toFixed(2)} MAD</span>
+                                                ${badgeHtml}
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')
+                            }
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            totalRevenueEl.innerText = `${totalGlobalRevenue.toFixed(2)} MAD`;
+        }
+    </script>
+</body>
+</html>
